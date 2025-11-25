@@ -1,0 +1,2399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Hot Seat (con Rachas)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="roulette.css">
+    <style>
+        /* --- ESTILOS CSS --- */
+        :root {
+            --bg-color-dark: #2c2f33; 
+            --container-bg-dark: #36393f; 
+            --text-color-light: #f0f2f5;
+            --btn-bg-default: #424549;
+            --btn-border-default: #55585d;
+            --btn-hover-bg: #5a5d63;
+            --correct-color: #4CAF50;
+            --incorrect-color: #F44336;
+            --next-btn-bg: #7289DA; 
+            --next-btn-hover-bg: #677BC4;
+            --leader-bg: #23272a;
+            /* NUEVO MODO EQUIPOS: Colores de equipo */
+            --team-a-color: #a71027; /* Un rojo más oscuro y sofisticado */
+            --team-b-color: #00407A; /* Un azul marino más profundo */
+        }
+        body {
+            font-family: 'Montserrat', sans-serif; background-color: var(--bg-color-dark);
+            display: flex; justify-content: center; align-items: center; /* Centrado vertical y horizontal */
+            min-height: 100vh; margin: 0;
+            color: var(--text-color-light); transition: background-color 0.5s ease;
+            padding: 2rem 1rem;
+        }
+        /* NUEVO MODO EQUIPOS: Fondos de equipo */
+        body.team-a-turn { background-color: var(--team-a-color); }
+        body.team-b-turn { background-color: var(--team-b-color); }
+
+        /* NUEVA MEJORA: Fondo animado para fireMode */
+        body.fire-background {
+            background-size: 400% 400%;
+            animation: fireGradient 10s ease infinite;
+        }
+        body.fire-background.team-a-turn {
+            background-image: linear-gradient(-45deg, #9B2335, #C7384D, #E06C7E, #F098A7);
+        }
+        body.fire-background.team-b-turn {
+            background-image: linear-gradient(-45deg, #00407A, #005A9E, #007CC7, #48A9E6);
+        }
+        @keyframes fireGradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #leader-display {
+            position: fixed; top: 15px; left: 15px; right: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: transparent;
+            z-index: 1000;
+            font-weight: 600;
+            display: none; 
+            animation: slideIn 0.5s ease-out;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            min-height: 60px;
+        }
+        .leader-tag {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--leader-bg);
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            border: 2px solid var(--next-btn-bg);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            font-size: 1.2rem;
+            display: inline-block;
+        }
+        .leader-tag.exploding {
+            animation: explodeOut 0.6s ease-out forwards;
+        }
+        @keyframes explodeOut {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        .leader-tag strong {
+            color: var(--next-btn-bg);
+            font-weight: 700;
+            font-size: 1.3rem;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        #stop-game-btn {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: var(--incorrect-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        #stop-game-btn:hover {
+            background-color: #c0392b;
+        }
+        body.flashing-red {
+            animation: flashRed 1s infinite;
+        }
+        @keyframes flashRed {
+            0%, 100% { background-color: var(--bg-color-dark); }
+            50% { background-color: var(--incorrect-color); }
+        }
+        #active-players-panel {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: fixed;
+            top: 120px;
+            left: 20px;
+            width: 200px;
+            background-color: var(--leader-bg);
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            z-index: 999;
+            display: none;
+        }
+        #active-players-panel h3 {
+            margin: 0 0 1rem 0;
+            text-align: center;
+            color: var(--next-btn-bg);
+            font-size: 1.1rem;
+        }
+        #active-players-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #active-players-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-radius: 5px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            background-color: var(--btn-bg-default);
+        }
+        .container {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            position: relative;
+            background-color: var(--container-bg-dark); border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); width: 90%;
+            max-width: 800px; overflow: hidden; padding: 3.5rem; 
+        }
+        #milestone-message {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(44, 47, 51, 0.95);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--correct-color);
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-out;
+        }
+        #milestone-message.show {
+            opacity: 1;
+        }
+        #timer-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: var(--leader-bg);
+            color: var(--text-color-light);
+            font-size: 1.8rem;
+            font-weight: 700;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 4px solid var(--next-btn-bg);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            display: none;
+        }
+        /* NUEVA MEJORA VISUAL: El borde del timer cambia con el equipo */
+        body.team-a-turn #timer-container {
+            border-color: white;
+        }
+        body.team-b-turn #timer-container {
+            border-color: white;
+        }
+        body.team-a-turn #timer-container.warning, body.team-b-turn #timer-container.warning {
+            border-color: #f0c419; /* Amarillo para advertencia en modo equipos */
+        }
+        #timer-container.warning {
+            color: var(--incorrect-color);
+            border-color: var(--incorrect-color);
+            animation: pulseWarning 1s infinite;
+        }
+        @keyframes pulseWarning {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        #setup-container h2, #mode-selection-container h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            font-weight: 900;
+            margin-top: 0;
+            margin-bottom: 2.5rem;
+            background: linear-gradient(45deg, var(--next-btn-bg), #a1b0f0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+        }
+        /* NUEVO: Contenedor para las secciones principales */
+        .setup-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .setup-section {
+            background-color: var(--leader-bg);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border-top: 3px solid transparent;
+            background-image: linear-gradient(var(--leader-bg), var(--leader-bg)), linear-gradient(to right, var(--next-btn-bg), #a1b0f0);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: flex 0.5s ease-in-out; /* Transición para la expansión */
+        }
+        .setup-section h3 {
+            margin: 0 0 1.5rem 0;
+            text-align: center;
+            color: var(--text-color-light);
+            font-size: 1.2rem;
+            border-bottom: 2px solid var(--btn-bg-default);
+            padding-bottom: 0.8rem;
+            letter-spacing: 1px; /* Un toque de estilo */
+        }
+        .setup-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        #player-form { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 1.5rem; 
+            flex-wrap: wrap; /* Para que el select se ajuste */
+        }
+        #player-name-input {
+            flex-grow: 1; 
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid var(--btn-border-default);
+            background-color: var(--btn-bg-default);
+            color: var(--text-color-light); 
+            font-size: 1.1rem;
+            font-family: 'Montserrat', sans-serif;
+            transition: border-color 0.3s;
+        }
+        #player-name-input:focus-visible {
+            outline: 2px solid var(--next-btn-bg);
+            outline-offset: 2px;
+        }
+        #player-name-input:focus { 
+            outline: none; 
+            border-color: var(--next-btn-bg); 
+        }
+        /* NUEVO MODO EQUIPOS: Estilo para el selector de equipo */
+        #player-team-select {
+            padding: 1rem;
+            border-radius: 8px;
+            border: 2px solid var(--btn-border-default);
+            background-color: var(--btn-bg-default);
+            color: var(--text-color-light);
+            font-size: 1.1rem;
+            font-family: 'Montserrat', sans-serif;
+            display: none; /* Oculto por defecto */
+        }
+        #add-player-btn {
+            padding: 1rem 1.5rem;
+            background-color: var(--next-btn-bg);
+            color: white; 
+            border: none; 
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer; 
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #add-player-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        #add-player-btn:hover { 
+            background-color: var(--next-btn-hover-bg);
+            transform: scale(1.05);
+        }
+        #setup-error {
+            color: var(--incorrect-color); 
+            font-weight: 600;
+            text-align: center; 
+            min-height: 20px;
+            margin-bottom: 1rem;
+        }
+        #player-list {
+            list-style: none; 
+            padding: 0; 
+            margin: 0;
+            max-height: 210px;
+            overflow-y: auto;
+            transition: max-height 0.5s ease-in-out; /* Transición para la altura */
+            padding-right: 10px; /* Espacio para la barra de scroll */
+        }
+        /* NUEVO: Estilo de la barra de scroll */
+        #player-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        #player-list::-webkit-scrollbar-track {
+            background: var(--leader-bg);
+            border-radius: 4px;
+        }
+        #player-list::-webkit-scrollbar-thumb {
+            background-color: var(--btn-border-default);
+            border-radius: 4px;
+        }
+        #player-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--btn-bg-default); 
+            padding: 0.8rem 1rem;
+            border-radius: 6px; 
+            margin-bottom: 8px; 
+            font-weight: 600;
+            animation: fadeIn 0.4s ease-out;
+        }
+        .player-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .player-actions > div {
+            background-color: var(--btn-border-default);
+            border-radius: 6px;
+            padding: 4px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .player-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;            
+            font-size: 1.2rem;
+            padding: 0.2rem;
+            line-height: 1;
+            transition: transform 0.2s, outline 0.2s;
+        }
+        .player-action-btn:focus-visible {
+            outline: 2px solid var(--next-btn-bg);
+            outline-offset: 2px;
+        }
+        .player-action-btn:hover {
+            transform: scale(1.2);
+        }        
+        .player-action-btn.edit {
+            color: #4CAF50;
+        }
+        .player-action-btn.delete {
+            color: #F44336;
+        }
+        .player-name-text {
+            flex-grow: 1;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        #start-quiz-btn {
+            background-color: var(--correct-color); 
+            display: none; 
+            width: 100%;
+            font-size: 1.3rem;
+            font-weight: 700;
+            padding: 1.2rem;
+            margin-top: 1rem;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #start-quiz-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        #start-quiz-btn:hover { background-color: #45a049; transform: translateY(-2px); }
+
+        /* NUEVO: Contenedor para los botones de acción finales */
+        .setup-actions {
+            margin-top: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #clear-players-btn {
+            background-color: transparent;
+            color: var(--incorrect-color);
+            border: 2px solid var(--incorrect-color);
+            display: none;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 600;
+            padding: 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #clear-players-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }        
+        #clear-players-btn:hover {
+            background-color: var(--incorrect-color);
+            color: white;
+        }
+
+        /* NUEVO: Estilo para el botón de volver a modos */
+        #back-to-modes-btn {
+            position: absolute;
+            top: 20px;
+            left: 25px;
+            background-color: transparent;
+            color: var(--text-color-light);
+            border: 2px solid var(--btn-border-default);
+            width: auto;
+            font-size: 0.9rem;
+            font-weight: 600;
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #back-to-modes-btn:hover {
+            background-color: var(--btn-border-default);
+        }
+        #back-to-modes-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        /* NUEVA MEJORA VISUAL: El contenedor del quiz cambia con el equipo */
+        #quiz-container { 
+            display: none;
+            transition: box-shadow 0.5s ease, border-color 0.5s ease;
+        }
+        body.team-a-turn .container {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        body.team-b-turn .container {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        #player-turn-container {
+            text-align: center; margin-bottom: 1.5rem;
+            font-size: 1.5rem; font-weight: 700;
+        }
+        #player-turn {
+            color: var(--next-btn-bg); font-size: 1.8rem; display: block;
+        }
+        /* NUEVA MEJORA VISUAL: El nombre del jugador cambia con el color del equipo */
+        body.team-a-turn #player-turn, body.team-b-turn #player-turn {
+            color: white;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            font-weight: 900;
+        }
+
+        #elimination-message {
+            font-size: 1.2rem; font-weight: 700;
+            text-align: center; min-height: 20px; /* Ajustado para que no salte el layout */
+            margin-top: -1rem; margin-bottom: 1rem;
+            transition: color 0.3s;
+        }
+        #question-text {
+            font-size: 1.6rem; font-weight: 700;
+            line-height: 1.5; color: var(--text-color-light);
+            text-align: center; margin-bottom: 2rem;
+        }
+        #answer-buttons { 
+            display: grid; 
+            grid-template-columns: 1fr;
+            gap: 1rem; 
+        }
+        #answer-buttons.two-options {
+            grid-template-columns: 1fr; /* Mantenemos una columna para 2 opciones, se ve mejor en móvil */
+        }
+        .btn {
+            background-color: var(--btn-bg-default);
+            border: 2px solid var(--btn-border-default); border-radius: 10px;
+            padding: 1.2rem; font-size: 1.1rem; font-weight: 600;
+            color: var(--text-color-light); cursor: pointer; text-align: left;
+            transition: background-color 0.3s, border-color 0.3s, transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .btn:hover:not(:disabled) {
+            background-color: var(--btn-hover-bg); border-color: var(--next-btn-bg);
+            transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        .btn:disabled { cursor: not-allowed; opacity: 0.8; }
+        .btn.correct {
+            background-color: var(--correct-color); border-color: var(--correct-color);
+            animation: pulseCorrect 0.6s ease-out;
+        }
+        .btn.incorrect {
+            background-color: var(--incorrect-color); border-color: var(--incorrect-color);
+            animation: shakeIncorrect 0.4s ease-out;
+        }
+        @keyframes pulseCorrect { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
+        @keyframes shakeIncorrect { 0% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } 100% { transform: translateX(0); } }
+        #next-btn {
+            display: none; width: 100%; background-color: var(--next-btn-bg);
+            border: none; border-radius: 10px; color: white;
+            font-weight: 700; margin-top: 2rem; padding: 1.2rem;
+            font-size: 1.2rem; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #next-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }        
+        #next-btn:hover { background-color: var(--next-btn-hover-bg); transform: translateY(-2px); }
+        #scoreboard { 
+            list-style: none; padding: 0; margin-top: 2rem; width: 100%;
+        }
+        #scoreboard li {
+            font-size: 1.3rem; font-weight: 600; padding: 1rem;
+            margin-bottom: 0.5rem; border-radius: 8px;
+            background-color: var(--btn-bg-default);
+            display: flex; justify-content: space-between;
+            animation: scorePop 0.5s ease-out forwards; opacity: 0;
+        }
+        #scoreboard li strong { color: var(--next-btn-bg); }
+        #scoreboard li.winner {
+            background-color: var(--correct-color);
+            color: white; font-size: 1.5rem;
+        }
+        #scoreboard li.winner strong { color: white; }
+        #scoreboard li.winner::before { content: '🏆 '; }
+        @keyframes scorePop { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .setting-item {
+            display: flex;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+        }
+        .toggle-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--btn-bg-default); transition: .4s; border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute; content: ""; height: 26px; width: 26px;
+            left: 4px; bottom: 4px; background-color: white;
+            transition: .4s; border-radius: 50%;
+        }
+        input:checked + .slider { background-color: var(--correct-color); }
+        input:focus + .slider { box-shadow: 0 0 1px var(--correct-color); }
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        #extra-life-btn {
+            position: fixed;
+            top: 50%;
+            left: 20px;
+            transform: translateY(-50%);
+            background-color: var(--correct-color);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            z-index: 1001;
+            display: none; /* Se controla por JS */
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #extra-life-btn:active {
+            transform: translateY(-50%) scale(0.98);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        #extra-life-btn:hover {
+            background-color: #45a049;
+            transform: translateY(-50%) scale(1.05);
+        }
+        .revival-popover {
+            position: fixed;
+            top: 50%;
+            left: 180px;
+            transform: translateY(-50%);
+            width: 350px;
+            background-color: var(--container-bg-dark);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            z-index: 1002;
+            display: none;
+            padding: 1.5rem;
+            border: 2px solid var(--btn-border-default);
+        }
+        .revival-popover.show {
+            display: block;
+            animation: slideInFromLeft 0.3s ease-out;
+        }
+        @keyframes slideInFromLeft { from { opacity: 0; transform: translate(-20px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
+        .revival-popover h3 { color: var(--next-btn-bg); margin-top: 0; text-align: center; }
+        .revival-popover p { font-size: 0.9rem; text-align: center; margin-bottom: 1rem; }
+        #revivable-players-list { list-style: none; padding: 0; max-height: 300px; overflow-y: auto; }
+        #revivable-players-list li {
+            background-color: var(--btn-bg-default); padding: 1rem;
+            margin-bottom: 10px; border-radius: 8px; font-weight: 600;
+            cursor: pointer; transition: background-color 0.2s;
+        }
+        #revivable-players-list li:hover { background-color: var(--btn-hover-bg); }
+        #revivable-players-list .no-players { cursor: default; text-align: center; font-style: italic; }
+        #revivable-players-list .no-players:hover { background-color: var(--btn-bg-default); }
+        #manage-questions-link {
+            display: block;
+            text-align: center;
+            padding: 0.8rem;
+            border-radius: 8px;
+            background-color: var(--btn-bg-default);
+            color: var(--text-color-light);
+            text-decoration: none;
+            font-weight: 600;
+            transition: background-color 0.2s, transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #manage-questions-link:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        #manage-questions-link:hover {
+            background-color: var(--btn-hover-bg);
+        }
+
+        /* NUEVO: Media Query para el diseño de dos columnas */
+        @media (min-width: 768px) {
+            .setup-layout { flex-direction: row; }
+            .add-player-section { flex: 3; } /* 60% del espacio */
+            .game-options-section { flex: 2; } /* 40% del espacio, más ancho */
+            #answer-buttons.two-options {
+                grid-template-columns: 1fr 1fr; /* 2 columnas en escritorio para modo duelo */
+            }
+
+            /* NUEVO: Estilos para el panel expandido en escritorio */
+            .add-player-section.expanded {
+                flex: 5; /* Aumenta el tamaño del panel de jugadores */
+            }
+
+            .add-player-section.expanded #player-list {
+                max-height: 450px; /* Aumenta la altura de la lista */
+            }
+        }
+
+        /* NUEVO: Estilos específicos para móviles */
+        @media (max-width: 767px) {
+            body {
+                padding: 2rem 1rem; /* Menos padding superior en móvil */
+            }
+            .container {
+                padding: 1.5rem; /* Padding más pequeño para los contenedores */
+            }
+            #setup-container h2, #mode-selection-container h2 {
+                font-size: 2rem; /* Título más pequeño */
+            }
+            #question-text {
+                font-size: 1.3rem; /* Texto de pregunta más pequeño */
+                margin-bottom: 1.5rem;
+            }
+            #player-turn-container {
+                font-size: 1.2rem; /* Reducir tamaño del texto de turno */
+            }
+            #player-turn {
+                font-size: 1.5rem; /* Reducir tamaño del nombre del jugador */
+            }
+            .btn {
+                padding: 1rem;
+                font-size: 1rem;
+            }
+            #stop-game-btn {
+                padding: 0.6rem 1rem; /* Botón más pequeño */
+                font-size: 0.9rem;
+            }
+            .leader-tag {
+                padding: 0.6rem 1rem; /* Etiquetas de líder más pequeñas */
+                font-size: 1rem;
+            }
+            /* Ocultar paneles laterales que estorban en móvil */
+            #active-players-panel, #extra-life-btn {
+                display: none !important;
+            }
+            #timer-container {
+                width: 50px;
+                height: 50px;
+                font-size: 1.5rem; /* Texto del temporizador más pequeño */
+                top: 15px;
+                right: 15px;
+                border-width: 3px;
+            }
+        }
+
+        #comodin-btn {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: none;
+            background-color: #f0c419;
+            color: var(--leader-bg);
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Sombra inicial */
+            transition: transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #comodin-btn:active {
+            transform: scale(0.98);
+            transition: transform 0.2s;
+        }
+        #comodin-btn:hover {
+            transform: scale(1.05);
+        }
+        #skip-btn {
+            display: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #3498db; /* Azul */
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); /* Sombra inicial */
+            transition: transform 0.2s, box-shadow 0.2s, outline 0.2s;
+        }
+        #skip-btn:active {
+            transform: scale(0.98);
+            transition: transform 0.2s;
+        }
+        #skip-btn:hover { transform: scale(1.05); }
+        #wildcard-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            min-height: 70px;
+        }
+        @keyframes dramatic-disappear {
+            0% { transform: scale(1) rotate(0); opacity: 1; }
+            100% { transform: scale(0) rotate(90deg); opacity: 0; }
+        }
+        .btn.disappearing {
+            animation: dramatic-disappear 0.5s ease-in forwards;
+        }
+        /* Estilos para el slider de volumen */
+        #music-volume {
+            width: 100px;
+            height: 8px;
+            -webkit-appearance: none;
+            background: var(--btn-border-default);
+            outline: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        #music-volume:focus-visible {
+            outline: 2px solid var(--next-btn-bg);
+            transition: opacity .2s;
+        }
+        #music-volume::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--next-btn-bg);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        #music-volume::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--next-btn-bg);
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        /* General focus-visible style for all interactive elements */
+        *:focus-visible {
+            outline: 2px solid var(--next-btn-bg);
+            outline-offset: 2px;
+        }
+
+        /* --- NUEVO: Estilos para el panel de selección de modo --- */
+        #mode-selection-container {
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+        #mode-selection-container.fade-out {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+        .mode-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        @media (min-width: 768px) {
+            .mode-buttons {
+                flex-direction: row;
+            }
+        }
+
+        .mode-btn {
+            position: relative;
+            flex: 1;
+            background-color: var(--btn-bg-default);
+            border: 3px solid transparent;
+            border-radius: 12px;
+            padding: 2rem;
+            color: var(--text-color-light);
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 220px;
+        }
+
+        .mode-btn::before {
+            content: '';
+            position: absolute;
+            top: 2rem;
+            width: 50px;
+            height: 50px;
+            background-color: var(--btn-border-default);
+            transition: all 0.3s ease;
+        }
+
+        /* Icono para Modo Clásico (4 opciones) */
+        .mode-btn[data-mode="4_options"]::before {
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'%3E%3C/rect%3E%3Crect x='14' y='3' width='7' height='7'%3E%3C/rect%3E%3Crect x='14' y='14' width='7' height='7'%3E%3C/rect%3E%3Crect x='3' y='14' width='7' height='7'%3E%3C/rect%3E%3C/svg%3E");
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7'%3E%3C/rect%3E%3Crect x='14' y='3' width='7' height='7'%3E%3C/rect%3E%3Crect x='14' y='14' width='7' height='7'%3E%3C/rect%3E%3Crect x='3' y='14' width='7' height='7'%3E%3C/rect%3E%3C/svg%3E");
+        }
+
+        /* Icono para Modo Duelo (2 opciones) */
+        .mode-btn[data-mode="2_options"]::before {
+             -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E");
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'%3E%3C/line%3E%3Cline x1='6' y1='6' x2='18' y2='18'%3E%3C/line%3E%3C/svg%3E");
+        }
+
+        /* NUEVO MODO EQUIPOS: Icono para Duelo de Equipos */
+        .mode-btn[data-mode="team_duel"]::before {
+            -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='9' cy='7' r='4'%3E%3C/circle%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'%3E%3C/path%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'%3E%3C/path%3E%3C/svg%3E");
+            mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='9' cy='7' r='4'%3E%3C/circle%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87'%3E%3C/path%3E%3Cpath d='M16 3.13a4 4 0 0 1 0 7.75'%3E%3C/path%3E%3C/svg%3E");
+        }
+
+        .mode-btn h3 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin: 5rem 0 0.5rem 0;
+            color: var(--text-color-light);
+            transition: color 0.3s ease;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-5px);
+            background-image: linear-gradient(var(--btn-bg-default), var(--btn-bg-default)), linear-gradient(to right, var(--next-btn-bg), #a1b0f0);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: 0 8px 25px rgba(114, 137, 218, 0.3);
+        }
+
+        .mode-btn:hover::before {
+            background-color: var(--next-btn-bg);
+            transform: scale(1.1);
+        }
+
+        .mode-btn:hover h3 {
+            color: var(--next-btn-bg);
+        }
+
+        .mode-btn:active {
+            transform: translateY(-2px) scale(0.98);
+            box-shadow: 0 4px 15px rgba(114, 137, 218, 0.2);
+        }
+
+        .mode-btn span {
+            display: block;
+            font-size: 1rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 400;
+            color: #b9bbbe;
+            margin-top: 0;
+        }
+
+        /* NUEVO MODO EQUIPOS: Estilos para el marcador de equipos */
+        #team-scoreboard {
+            display: none; /* Oculto por defecto */
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 2rem;
+            gap: 1rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .team-score {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .team-score.team-a {
+            background-color: var(--team-a-color);
+            color: white;
+        }
+        .team-score.team-b {
+            background-color: var(--team-b-color);
+            color: white;
+        }
+        .team-score.active-turn {
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .team-score span {
+            display: block;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .fire-mode-active {
+            animation: firePulse 1s infinite;
+        }
+        @keyframes firePulse {
+            0% { box-shadow: 0 8px 20px rgba(240, 196, 25, 0.4); }
+            50% { box-shadow: 0 8px 30px rgba(240, 196, 25, 0.8); }
+            100% { box-shadow: 0 8px 20px rgba(240, 196, 25, 0.4); }
+        }
+
+        /* NUEVO MODO EQUIPOS: Estilo para el botón de consulta */
+        #team-consult-btn {
+            display: none; /* Oculto por defecto */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0c419;
+            color: var(--leader-bg);
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #team-consult-btn:hover {
+            transform: scale(1.05);
+        }
+        #team-consult-btn:disabled {
+            background-color: var(--btn-border-default);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* NUEVA MEJORA: Estilo para el botón Doble o Nada */
+        #double-or-nothing-btn {
+            display: none; /* Oculto por defecto */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(45deg, #ff416c, #ff4b2b);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 0.8rem 2rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 75, 43, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        #double-or-nothing-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 75, 43, 0.6);
+        }
+        #double-or-nothing-btn:disabled {
+            background: var(--btn-border-default);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="leader-display">
+        🏆 Líder: <strong>Nadie</strong> (0 puntos)
+    </div>
+
+    <div id="active-players-panel">
+        <h3>Jugadores Activos</h3>
+        <ul id="active-players-list"></ul>
+    </div>
+
+    <button id="stop-game-btn">Detener Juego</button>
+
+    <!-- Panel de Selección de Modo -->
+    <div id="mode-selection-container" class="container">
+        <h2>Elige un Modo de Juego</h2>
+        <div class="mode-buttons">
+            <button class="mode-btn" data-mode="4_options">
+                <h3>Modo Clásico</h3>
+                <span>4 Opciones de Respuesta</span>
+            </button>
+            <button class="mode-btn" data-mode="2_options">
+                <h3>Modo Duelo</h3>
+                <span>2 Opciones (Verdadero/Falso)</span>
+            </button>
+            <!-- NUEVO MODO EQUIPOS: Botón para el nuevo modo -->
+            <button class="mode-btn" data-mode="team_duel">
+                <h3>Duelo de Equipos</h3>
+                <span>Equipos A vs B (Sigue hasta fallar)</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="setup-container" class="container" style="display: none;">
+        <button id="back-to-modes-btn">← Cambiar Modo</button>
+        <h2 id="setup-title">Mi Cuestionario</h2>
+        
+        <div class="setup-layout">
+            <div class="setup-section add-player-section">
+                <h3>Añadir Jugadores</h3>
+                <form id="player-form">
+                    <input type="text" id="player-name-input" placeholder="Nombre del jugador (máx 50)" autocomplete="off">
+                    <!-- NUEVO MODO EQUIPOS: Selector de equipo -->
+                    <select id="player-team-select">
+                        <option value="A">Equipo A</option>
+                        <option value="B">Equipo B</option>
+                    </select>
+                    <button type="submit" id="add-player-btn">Añadir</button>
+                </form>
+                <ul id="player-list"></ul>
+            </div>
+    
+            <div class="setup-section game-options-section">
+                <h3>Opciones de Juego</h3>
+                <div class="setting-item">
+                    <label for="shuffle-questions-toggle">Preguntas Aleatorias:</label>
+                    <label class="toggle-switch"><input type="checkbox" id="shuffle-questions-toggle"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="second-life-toggle">Segunda Vida:</label>
+                    <label class="toggle-switch"><input type="checkbox" id="second-life-toggle"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" id="comodin-5050-setting" style="margin-top: 1rem;">
+                    <label for="comodin-toggle">Comodín (50/50):</label>
+                    <label class="toggle-switch"><input type="checkbox" id="comodin-toggle"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="skip-wildcard-toggle">Comodín (Saltar):</label>
+                    <label class="toggle-switch"><input type="checkbox" id="skip-wildcard-toggle"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" id="team-consult-setting" style="margin-top: 1rem; display: none;">
+                    <label for="team-consult-toggle">Consulta de Equipo:</label>
+                    <label class="toggle-switch"><input type="checkbox" id="team-consult-toggle"><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="music-toggle">Música de Fondo:</label>
+                    <label class="toggle-switch"><input type="checkbox" id="music-toggle" checked><span class="slider"></span></label>
+                </div>
+                <div class="setting-item" style="margin-top: 1rem;">
+                    <label for="music-volume">Volumen Música:</label>
+                    <input type="range" id="music-volume" min="0" max="1" step="0.1" value="0.5">
+                </div>
+            </div>
+        </div>
+
+        <div id="setup-error"></div>
+
+        <div class="setup-actions">
+            <button id="start-quiz-btn" class="btn">Ingresar con los que tenemos</button>
+            <button id="clear-players-btn">Limpiar Jugadores</button>
+            <a href="manage-questions.html" id="manage-questions-link">Gestionar Preguntas</a>
+        </div>
+    </div>
+
+    <button id="extra-life-btn">Vida Extra</button>
+
+    <div id="revival-popover" class="revival-popover">
+        <h3>Revivir Jugador</h3>
+        <p>Selecciona un jugador para que vuelva al juego (sus puntos se reiniciarán a 0).</p>
+        <ul id="revivable-players-list"></ul>
+    </div>
+
+    <div id="roulette-container" class="container" style="display: none;">
+        <h2>¡Gira la ruleta para ver quién empieza!</h2>
+        <div class="roulette-wrapper">
+            <div id="roulette-pointer"></div>
+            <div id="roulette-wheel">
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-container" class="container" style="display: none;">
+        <!-- NUEVO MODO EQUIPOS: Marcador de equipos -->
+        <div id="team-scoreboard">
+            <div id="team-a-score" class="team-score team-a">
+                Equipo A
+                <span>0 Puntos</span>
+            </div>
+            <div id="team-b-score" class="team-score team-b">
+                Equipo B
+                <span>0 Puntos</span>
+            </div>
+        </div>
+
+        <div id="timer-container">
+            <span id="timer-text">60</span>
+        </div>
+        
+        <div id="milestone-message"></div>
+
+        <div id="player-turn-container">
+            Es el turno de:
+            <span id="player-turn"></span>
+        </div>
+        <div id="elimination-message"></div>
+        <div id="question-container">
+            <h2 id="question-text">Aquí va la pregunta</h2>
+        </div>
+        <div id="answer-buttons" class="btn-grid"></div>
+        <div id="wildcard-bar">
+            <button id="comodin-btn">Comodín 50/50</button>
+            <button id="skip-btn">Saltar Pregunta</button>
+            <!-- NUEVO MODO EQUIPOS: Botón de consulta -->
+            <button id="team-consult-btn">🤝 Consultar (3)</button>
+            <!-- NUEVA MEJORA: Botón Doble o Nada -->
+            <button id="double-or-nothing-btn">🔥 Doble o Nada 🔥</button>
+        </div>
+        <button id="next-btn" class="btn">Siguiente Turno</button>
+    </div>
+
+    <!-- Audio Elements -->
+    <audio id="setup-audio" src="audio/background_setup.mp3" loop preload="auto"></audio>
+    <audio id="game-audio" src="audio/background_game.mp3" loop preload="auto"></audio>
+
+    <script src="questions.js"></script>
+    <script src="questions_2_options.js"></script>
+    <script src="players.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+        // --- GENERADOR DE SONIDOS (MOVIDO AQUÍ PARA ACCESIBILIDAD GLOBAL) ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playSound(type, duration = 0.3) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+
+            if (type === 'correct') {
+                oscillator.type = 'triangle';
+                oscillator.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+            } else if (type === 'incorrect') {
+                oscillator.type = 'square';
+                oscillator.frequency.setValueAtTime(200, audioCtx.currentTime);
+            } else if (type === 'roulette_tick') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+                duration = 0.1;
+            } else if (type === 'roulette_win') {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.5);
+                duration = 0.5;
+            } else if (type === 'timer_tick') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.1);
+                duration = 0.1;
+            } else if (type === 'comodin') {
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // Tono inicial (La)
+                oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.3); // Sube una octava
+                duration = 0.4;
+            } else if (type === 'skip') {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.2);
+                duration = 0.2;
+            // NUEVA MEJORA: Sonido para activar fireMode
+            } else if (type === 'fire_mode_activated') {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(300, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.5);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                duration = 0.6;
+            }
+            
+            gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+    </script>
+    <script src="roulette.js"></script>
+    <script src="wildcards.js"></script>
+    <script>
+        // --- REFERENCIAS A ELEMENTOS HTML ---
+        const modeSelectionContainer = document.getElementById('mode-selection-container');
+        const setupContainer = document.getElementById('setup-container');
+        const rouletteContainer = document.getElementById('roulette-container');
+        const quizContainer = document.getElementById('quiz-container');
+        const leaderDisplayElement = document.getElementById('leader-display'); 
+        const eliminationMessageElement = document.getElementById('elimination-message');
+        const setupErrorElement = document.getElementById('setup-error');
+        const playerForm = document.getElementById('player-form');
+        const playerNameInput = document.getElementById('player-name-input');
+        const playerList = document.getElementById('player-list');
+        const startQuizBtn = document.getElementById('start-quiz-btn');
+        const playerTurnElement = document.getElementById('player-turn');
+        const playerTurnContainer = document.getElementById('player-turn-container');
+        const questionElement = document.getElementById('question-text');
+        const answerButtonsElement = document.getElementById('answer-buttons');
+        const nextButton = document.getElementById('next-btn');
+        const timerContainer = document.getElementById('timer-container');
+        const timerText = document.getElementById('timer-text');
+        const milestoneMessage = document.getElementById('milestone-message');
+        const activePlayersPanel = document.getElementById('active-players-panel');
+        const stopGameBtn = document.getElementById('stop-game-btn');
+        const shuffleQuestionsToggle = document.getElementById('shuffle-questions-toggle');
+        const secondLifeToggle = document.getElementById('second-life-toggle');
+        const comodinToggle = document.getElementById('comodin-toggle');
+        const skipToggle = document.getElementById('skip-wildcard-toggle');
+        const musicToggle = document.getElementById('music-toggle');
+        const musicVolume = document.getElementById('music-volume');
+        const extraLifeBtn = document.getElementById('extra-life-btn');
+        const clearPlayersBtn = document.getElementById('clear-players-btn');
+        const revivalPopover = document.getElementById('revival-popover');
+        const comodinBtn = document.getElementById('comodin-btn');
+        const skipBtn = document.getElementById('skip-btn');
+        const manageQuestionsLink = document.getElementById('manage-questions-link');
+        const setupTitle = document.getElementById('setup-title');
+        const backToModesBtn = document.getElementById('back-to-modes-btn');
+        const addPlayerSection = document.querySelector('.add-player-section');
+        // NUEVO MODO EQUIPOS: Referencias a elementos
+        const playerTeamSelect = document.getElementById('player-team-select');
+        const teamScoreboard = document.getElementById('team-scoreboard');
+        const teamAScoreElement = document.getElementById('team-a-score');
+        const teamConsultSetting = document.getElementById('team-consult-setting');
+        const teamConsultToggle = document.getElementById('team-consult-toggle');
+        const teamBScoreElement = document.getElementById('team-b-score');
+        const teamConsultBtn = document.getElementById('team-consult-btn');
+        // NUEVA MEJORA: Referencia a botón Doble o Nada
+        const doubleOrNothingBtn = document.getElementById('double-or-nothing-btn');
+        
+        // --- VARIABLES DE ESTADO DEL JUEGO ---
+        let gameMode = '4_options'; // '4_options', '2_options', o 'team_duel'
+        let gameQuestions = [];
+        let players = []; 
+        let eliminatedPlayers = [];
+        let currentQuestionIndex = 0;
+        let interruptedPlayerIndex = null;
+        let currentPlayerIndex = 0; 
+        const MAX_PLAYERS = 50;
+        let currentLeaders = [];
+        const CORRECT_ANSWER_DELAY = 1500;
+        const MILESTONE_MESSAGE_DELAY = 2000;
+
+        let questionTimer;
+        let currentTimerDuration = 0;
+        let timerStartTime; // Para pausar y reanudar
+        let remainingTimeOnPause; // Para pausar y reanudar
+
+        // NUEVO MODO EQUIPOS: Variables de estado
+        let teamAScore = 0;
+        let teamBScore = 0;
+        let teamStreakCounterA = 0;
+        let teamStreakCounterB = 0;
+        let fireModeA = false;
+        let fireModeB = false;
+        let consultUsesA = 3;
+        let consultUsesB = 3;
+        // NUEVA MEJORA: Variable para Doble o Nada
+        let isDoubleOrNothingActive = false;
+
+        // --- Audio Elements ---
+        const setupAudio = document.getElementById('setup-audio');
+        const gameAudio = document.getElementById('game-audio');
+
+        // --- Lógica para guardar y cargar jugadores ---
+        const PLAYERS_STORAGE_KEY = 'miCuestionarioJugadores';
+
+        function savePlayersToStorage() {
+            localStorage.setItem(PLAYERS_STORAGE_KEY, JSON.stringify(players));
+        }
+
+        function loadPlayers() {
+            try {
+                const storedPlayers = localStorage.getItem(PLAYERS_STORAGE_KEY);
+                if (storedPlayers) {
+                    const parsed = JSON.parse(storedPlayers);
+                    if (Array.isArray(parsed)) {
+                        players = parsed;
+                    }
+                } else if (typeof defaultPlayers !== 'undefined' && Array.isArray(defaultPlayers)) {
+                    players = defaultPlayers;
+                    savePlayersToStorage();
+                }
+                renderPlayerList();
+            } catch (e) {
+                console.error("Error al cargar jugadores de localStorage:", e);
+                players = [];
+                renderPlayerList();
+            }
+        }
+
+        // --- Cargar preguntas desde LocalStorage o desde el archivo .js ---
+        function loadGameQuestions() {
+            gameQuestions = []; // Limpiar antes de cargar
+            let defaultQuestionsSource = [];
+            let storageKey = '';
+
+            // NUEVO MODO EQUIPOS: El modo equipos usa las preguntas de 4 opciones
+            if (gameMode === '2_options') {
+                storageKey = 'miCuestionarioPreguntas_2_options';
+                defaultQuestionsSource = (typeof questions_2_options !== 'undefined' && Array.isArray(questions_2_options)) ? questions_2_options : [];
+            } else { // '4_options' y 'team_duel' por defecto
+                storageKey = 'miCuestionarioPreguntas';
+                defaultQuestionsSource = (typeof questions !== 'undefined' && Array.isArray(questions)) ? questions : [];
+            }
+
+            try {
+                const storedQuestions = localStorage.getItem(storageKey);
+                if (storedQuestions && storedQuestions !== '[]') {
+                    const parsed = JSON.parse(storedQuestions);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        gameQuestions = parsed;
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error(`Error al cargar preguntas de ${storageKey} desde localStorage, usando preguntas por defecto:`, e);
+            }
+            
+            if (defaultQuestionsSource.length > 0) {
+                gameQuestions = defaultQuestionsSource;
+            } else {
+                gameQuestions = [];
+            }
+        }
+
+        // --- LÓGICA DE CONFIGURACIÓN ---
+        playerForm.addEventListener('submit', addPlayer);
+        function addPlayer(e) {
+            e.preventDefault(); 
+            setupErrorElement.innerText = '';
+            const playerName = playerNameInput.value.trim();
+            const lowerCaseName = playerName.toLowerCase();
+            if (playerName === '') {
+                setupErrorElement.innerText = 'Por favor, ingresa un nombre.'; return;
+            }
+            if ((players.length + eliminatedPlayers.length) >= MAX_PLAYERS) {
+                setupErrorElement.innerText = `Límite de ${MAX_PLAYERS} jugadores alcanzado.`; return;
+            }
+            if (players.some(p => p.name.toLowerCase() === lowerCaseName) || eliminatedPlayers.some(p => p.name.toLowerCase() === lowerCaseName)) {
+                 setupErrorElement.innerText = 'Ese nombre ya existe. Elige otro.'; return;
+            }
+            const player = { 
+                name: playerName.slice(0, 50), 
+                score: 0, 
+                hasBeenRevived: false,
+                hasUsed5050: false,
+                hasUsedSkip: false,
+                // NUEVO MODO EQUIPOS: Asignar equipo
+                team: gameMode === 'team_duel' ? playerTeamSelect.value : null
+            };
+            players.push(player);
+            renderPlayerList();
+            savePlayersToStorage();
+            playerNameInput.value = ''; playerNameInput.focus();
+        }
+        
+        function renderPlayerList() {
+            playerList.innerHTML = '';
+            players.forEach((player, index) => {
+                const li = document.createElement('li');
+                li.dataset.playerName = player.name;
+
+                // NUEVO MODO EQUIPOS: Mostrar equipo en la lista
+                const teamIndicator = gameMode === 'team_duel' ? ` <strong style="color: ${player.team === 'A' ? 'var(--team-a-color)' : 'var(--team-b-color)'};">[${player.team}]</strong>` : '';
+
+                li.innerHTML = `
+                    <span class="player-name-text">${player.name}${teamIndicator}</span>
+                    <div class="player-actions">
+                        <div>
+                            <button class="player-action-btn edit" title="Editar nombre">✏️</button>
+                        </div>
+                        <div>
+                            <button class="player-action-btn delete" title="Eliminar jugador">🗑️</button>
+                        </div>
+                    </div>
+                `;
+
+                li.querySelector('.edit').addEventListener('click', () => handleEditPlayer(player.name));
+                li.querySelector('.delete').addEventListener('click', () => handleDeletePlayer(player.name));
+
+                playerList.appendChild(li);
+            });
+
+            if (players.length === 0) {
+                startQuizBtn.style.display = 'none';
+                clearPlayersBtn.style.display = 'none';
+            } else {
+                startQuizBtn.style.display = 'block';
+                clearPlayersBtn.style.display = 'block';
+            }
+        }
+
+        function handleEditPlayer(playerName) {
+            const playerIndex = players.findIndex(p => p.name === playerName);
+            if (playerIndex === -1) return;
+
+            const newName = prompt("Introduce el nuevo nombre para el jugador:", playerName);
+
+            if (newName === null || newName.trim() === '') {
+                return;
+            }
+
+            const trimmedNewName = newName.trim();
+            const lowerCaseNewName = trimmedNewName.toLowerCase();
+
+            if (players.some((p, i) => i !== playerIndex && p.name.toLowerCase() === lowerCaseNewName)) {
+                alert("Ese nombre ya está en uso. Por favor, elige otro.");
+                return;
+            }
+
+            players[playerIndex].name = trimmedNewName;
+            renderPlayerList();
+            savePlayersToStorage();
+        }
+
+        function handleDeletePlayer(playerName) {
+            const playerIndex = players.findIndex(p => p.name === playerName);
+            if (playerIndex > -1) {
+                players.splice(playerIndex, 1);
+                savePlayersToStorage();
+                renderPlayerList();
+            }
+        }
+
+        startQuizBtn.addEventListener('click', initializeGame);
+        function initializeGame() {
+            loadGameQuestions();
+
+            setupErrorElement.innerText = '';
+            if (gameQuestions.length === 0) {
+                setupErrorElement.innerText = 'No hay preguntas cargadas para este modo de juego.'; return;
+            }
+
+            // NUEVO MODO EQUIPOS: Validación y preparación
+            if (gameMode === 'team_duel') {
+                const teamA = players.filter(p => p.team === 'A');
+                const teamB = players.filter(p => p.team === 'B');
+
+                if (teamA.length !== teamB.length || teamA.length === 0) {
+                    setupErrorElement.innerText = 'Para el Duelo de Equipos, ambos equipos deben tener el mismo número de jugadores (y al menos 1).';
+                    return;
+                }
+
+                // Ordenar jugadores de forma intercalada: A1, B1, A2, B2...
+                const interleavedPlayers = [];
+                for (let i = 0; i < teamA.length; i++) {
+                    interleavedPlayers.push(teamA[i]);
+                    interleavedPlayers.push(teamB[i]);
+                }
+                players = interleavedPlayers;
+
+                // Reiniciar variables de equipo
+                teamAScore = 0; teamBScore = 0;
+                teamStreakCounterA = 0; teamStreakCounterB = 0;
+                fireModeA = false; fireModeB = false;
+                consultUsesA = 3; consultUsesB = 3;
+                updateTeamScoreboard();
+                teamScoreboard.style.display = 'flex';
+                leaderDisplayElement.style.display = 'none'; // Ocultar líder individual
+            } else {
+                teamScoreboard.style.display = 'none';
+                leaderDisplayElement.style.display = 'flex';
+            }
+
+            eliminatedPlayers = [];
+            currentQuestionIndex = 0;
+            interruptedPlayerIndex = null;
+
+            players.forEach(player => {
+                player.score = 0; // Reiniciar puntaje individual
+                player.hasUsed5050 = false;
+                player.hasUsedSkip = false;
+            });
+            
+            if (shuffleQuestionsToggle.checked) {
+                shuffleArray(gameQuestions);
+            }
+
+            const wildcardConfig = {
+                fiftyFifty: {
+                    enabled: gameMode !== '2_options' && comodinToggle.checked,
+                    button: comodinBtn
+                },
+                skip: {
+                    enabled: skipToggle.checked,
+                    button: skipBtn
+                }
+            };
+            WildcardManager.init(wildcardConfig, answerButtonsElement);
+
+            setupContainer.style.display = 'none';
+            rouletteContainer.style.display = 'flex';
+            setupRoulette(players, startQuizWithPlayer);
+            updateActivePlayersList();
+
+            if (musicToggle.checked) {
+                setupAudio.pause();
+                setupAudio.currentTime = 0;
+                gameAudio.play().catch(e => console.log("Autoplay blocked for game music:", e));
+            }
+            
+            startDynamicSpin(players);
+        }
+
+        function startQuizWithPlayer(winnerIndex) {
+            playSound('roulette_win');
+            
+            setTimeout(() => {
+                currentPlayerIndex = winnerIndex;
+                rouletteContainer.style.display = 'none';
+                quizContainer.style.display = 'block';
+                stopGameBtn.style.display = 'block';
+                
+                if (gameMode !== 'team_duel') {
+                    activePlayersPanel.style.display = 'block';
+                    leaderDisplayElement.style.display = 'flex';
+                    updateLeaderDisplay();
+                }
+
+                if (secondLifeToggle.checked) {
+                    extraLifeBtn.style.display = 'block';
+                }
+                showNextTurn();
+                
+            }, 2000);
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        extraLifeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleRevivalPopover();
+        });
+
+        function toggleRevivalPopover() {
+            const isVisible = revivalPopover.classList.contains('show');
+            if (isVisible) {
+                revivalPopover.classList.remove('show');
+                return;
+            }
+
+            const list = document.getElementById('revivable-players-list');
+            list.innerHTML = '';
+
+            const revivablePlayers = eliminatedPlayers.filter(p => p.score >= 1 && !p.hasBeenRevived);
+            
+            if (revivablePlayers.length === 0) {
+                list.innerHTML = '<li class="no-players">No hay jugadores elegibles para revivir.</li>';
+            } else {
+                revivablePlayers.forEach(player => {
+                    const li = document.createElement('li');
+                    li.textContent = `${player.name} (${player.score} puntos)`;
+                    li.addEventListener('click', () => revivePlayer(player.name));
+                    list.appendChild(li);
+                });
+            }
+            revivalPopover.classList.add('show');
+        }
+
+        function revivePlayer(playerName) {
+            const playerIndex = eliminatedPlayers.findIndex(p => p.name === playerName);
+            if (playerIndex === -1) return;
+
+            const [revivedPlayer] = eliminatedPlayers.splice(playerIndex, 1);
+            
+            // NUEVO MODO EQUIPOS: Penalización al revivir
+            if (gameMode === 'team_duel') {
+                if (revivedPlayer.team === 'A') {
+                    teamAScore = Math.max(0, teamAScore - revivedPlayer.score);
+                } else {
+                    teamBScore = Math.max(0, teamBScore - revivedPlayer.score);
+                }
+                updateTeamScoreboard();
+            }
+
+            interruptedPlayerIndex = currentPlayerIndex;
+
+            revivedPlayer.score = 0;
+            WildcardManager.resetForPlayer(revivedPlayer);
+            revivedPlayer.hasBeenRevived = true;
+            players.push(revivedPlayer);
+
+            currentPlayerIndex = players.length - 1;
+
+            updateActivePlayersList();
+            if (gameMode !== 'team_duel') updateLeaderDisplay();
+            revivalPopover.classList.remove('show');
+            showNextTurn();
+        }
+
+        document.body.addEventListener('click', (e) => {
+            if (!revivalPopover.contains(e.target) && revivalPopover.classList.contains('show')) {
+                revivalPopover.classList.remove('show');
+            }
+        });
+
+        stopGameBtn.addEventListener('click', stopGameManually);
+        function stopGameManually() {
+            if (confirm('¿Estás seguro de que quieres detener el juego? Se mostrarán los resultados finales.')) {
+                showScoreboard();
+            }
+        }
+
+        function updateLeaderDisplay() {
+            if (gameMode === 'team_duel') return; // No se usa en modo equipos
+            leaderDisplayElement.style.display = 'flex';
+            const allPlayers = [...players, ...eliminatedPlayers];
+            if (allPlayers.length === 0) return;
+
+            const highScore = Math.max(0, ...allPlayers.map(p => p.score));
+            const newLeaders = allPlayers.filter(p => p.score === highScore && highScore > 0);
+            const newLeaderNames = newLeaders.map(l => l.name);
+            const oldLeaderNames = currentLeaders.map(l => l.name);
+
+            currentLeaders.forEach(oldLeader => {
+                if (!newLeaderNames.includes(oldLeader.name)) {
+                    const tag = document.querySelector(`.leader-tag[data-name="${oldLeader.name}"]`);
+                    if (tag) {
+                        tag.classList.add('exploding');
+                        setTimeout(() => tag.remove(), 600);
+                    }
+                }
+            });
+
+            newLeaders.forEach(newLeader => {
+                if (!oldLeaderNames.includes(newLeader.name)) {
+                    const tag = document.createElement('div');
+                    tag.className = 'leader-tag';
+                    tag.dataset.name = newLeader.name;
+                    tag.innerHTML = `🏆 <strong>${newLeader.name}</strong> (${newLeader.score})`;
+                    leaderDisplayElement.appendChild(tag);
+                }
+            });
+
+            document.querySelectorAll('.leader-tag').forEach(tag => {
+                if (newLeaderNames.includes(tag.dataset.name)) {
+                    tag.innerHTML = `🏆 <strong>${tag.dataset.name}</strong> (${highScore})`;
+                }
+            });
+
+            if (newLeaders.length === 0 && !document.querySelector('.leader-tag[data-name="Nadie"]')) {
+                leaderDisplayElement.innerHTML = '<div class="leader-tag" data-name="Nadie">🏆 <strong>Nadie</strong> (0)</div>';
+            } else {
+                if (newLeaders.length > 0 && document.querySelector('.leader-tag[data-name="Nadie"]')) {
+                    document.querySelector('.leader-tag[data-name="Nadie"]').remove();
+                }
+            }
+
+            currentLeaders = newLeaders;
+
+            updateActivePlayersList();
+        }
+
+        // NUEVO MODO EQUIPOS: Actualizar marcador de equipos
+        function updateTeamScoreboard() {
+            teamAScoreElement.querySelector('span').textContent = `${teamAScore} Puntos`;
+            teamBScoreElement.querySelector('span').textContent = `${teamBScore} Puntos`;
+
+            teamAScoreElement.classList.toggle('fire-mode-active', fireModeA);
+            teamBScoreElement.classList.toggle('fire-mode-active', fireModeB);
+        }
+
+        function updateActivePlayersList() {
+            const listElement = document.getElementById('active-players-list');
+            if (!listElement || gameMode === 'team_duel') return;
+            listElement.innerHTML = '';
+            const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+            sortedPlayers.forEach(player => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${player.name}</span><span>${player.score}</span>`;
+                listElement.appendChild(li);
+            });
+        }
+
+        function showNextTurn() {
+            resetState();
+
+            if (currentQuestionIndex >= gameQuestions.length || (players.length === 0 && eliminatedPlayers.length > 0)) {
+                showScoreboard();
+                return;
+            }
+
+            currentPlayerIndex = currentPlayerIndex % players.length; 
+            const player = players[currentPlayerIndex];
+            
+            // NUEVO MODO EQUIPOS: Lógica de ambiente visual y marcador
+            if (gameMode === 'team_duel') {
+                document.body.classList.toggle('team-a-turn', player.team === 'A');
+                document.body.classList.toggle('team-b-turn', player.team === 'B');
+                teamAScoreElement.classList.toggle('active-turn', player.team === 'A');
+                teamBScoreElement.classList.toggle('active-turn', player.team === 'B');
+                
+                // NUEVA MEJORA: Aplicar fondo de fireMode si está activo
+                const isFireMode = player.team === 'A' ? fireModeA : fireModeB;
+                document.body.classList.toggle('fire-background', isFireMode);
+
+                // Botón de consulta
+                if (teamConsultToggle.checked) {
+                    teamConsultBtn.style.display = 'block';
+                    const consultsLeft = player.team === 'A' ? consultUsesA : consultUsesB;
+                    teamConsultBtn.textContent = `🤝 Consultar (${consultsLeft})`;
+                    teamConsultBtn.disabled = consultsLeft <= 0;
+                }
+            }
+
+            showQuestionForPlayer(player);
+        }
+
+        // NUEVO MODO EQUIPOS: Función separada para mostrar pregunta (reutilizable)
+        function showQuestionForPlayer(player) {
+            const question = gameQuestions[currentQuestionIndex];
+            if (!question) { // Si no hay más preguntas
+                showScoreboard();
+                return;
+            }
+
+            // NUEVA MEJORA: Indicador de racha con emojis de fuego
+            let streakIndicator = '';
+            if (gameMode === 'team_duel') {
+                if (player.score >= 10) streakIndicator = ' 🔥🔥🔥';
+                else if (player.score >= 5) streakIndicator = ' 🔥🔥';
+                else if (player.score >= 3) streakIndicator = ' 🔥';
+            }
+            playerTurnElement.innerHTML = player.name + streakIndicator;
+
+            questionElement.innerText = `(Pregunta ${currentQuestionIndex + 1}) ${question.question}`;
+
+            WildcardManager.updateButtonVisibility(player);
+
+            // NUEVA LÓGICA DOBLE O NADA: Mostrar botón si el jugador tiene 5+ puntos y no está activo
+            if (gameMode === 'team_duel' && player.score >= 5 && !isDoubleOrNothingActive) {
+                doubleOrNothingBtn.style.display = 'block';
+                doubleOrNothingBtn.textContent = '🔥 Doble o Nada 🔥';
+                doubleOrNothingBtn.disabled = false;
+            }
+
+            currentTimerDuration = 0; // Por defecto no hay timer
+            if (gameMode === 'team_duel') {
+                if (player.score >= 10) currentTimerDuration = 15;
+                else if (player.score >= 5) currentTimerDuration = 30;
+                else if (player.score >= 3) currentTimerDuration = 60;
+            } else { // Lógica de timer para otros modos
+                if (player.score >= 10) currentTimerDuration = 15;
+                else if (player.score >= 5) currentTimerDuration = 30;
+                else if (player.score >= 3) currentTimerDuration = 60;
+            }
+            
+            if (currentTimerDuration > 0) {
+                timerContainer.style.display = 'flex';
+                timerText.innerText = currentTimerDuration;
+                startTimer(currentTimerDuration);
+            } else {
+                timerContainer.style.display = 'none';
+            }
+
+            answerButtonsElement.className = 'btn-grid';
+            if (gameMode === '2_options') {
+                answerButtonsElement.classList.add('two-options');
+            }
+
+            question.answers.forEach((answer, index) => {
+                const button = document.createElement('button');
+                const letter = String.fromCharCode(65 + index);
+                button.innerText = `${letter}) ${answer.text}`;
+                button.classList.add('btn');
+                if (answer.correct) {
+                    button.dataset.correct = true;
+                }
+                button.addEventListener('click', selectAnswer);
+                answerButtonsElement.appendChild(button);
+            });
+        }
+        
+        function startTimer(duration) {
+            let timeLeft = duration;
+            clearInterval(questionTimer);
+            timerContainer.classList.remove('warning');
+            
+            timerStartTime = Date.now(); // Guardar tiempo de inicio
+            remainingTimeOnPause = duration * 1000; // Guardar duración total
+
+            questionTimer = setInterval(() => {
+                timeLeft--;
+                timerText.innerText = timeLeft;
+                playSound('timer_tick');
+                
+                if (timeLeft <= 10) {
+                    timerContainer.classList.add('warning');
+                }
+
+                if (timeLeft <= 5) {
+                    document.body.classList.add('flashing-red');
+                }
+                
+                if (timeLeft <= 0) {
+                    handleTimeUp();
+                }
+            }, 1000);
+        }
+        
+        function handleTimeUp() {
+            clearInterval(questionTimer);
+            document.body.classList.remove('flashing-red');
+            disableButtons();
+            const reason = `¡${players[currentPlayerIndex].name} se quedó sin tiempo y está eliminado!`;
+            eliminatePlayer(reason);
+        }
+        
+        function disableButtons() {
+            Array.from(answerButtonsElement.children).forEach(button => {
+                button.disabled = true;
+            });
+        }
+
+        function resetState() {
+            clearInterval(questionTimer);
+            timerContainer.style.display = 'none';
+            if (gameMode !== 'team_duel') {
+                activePlayersPanel.style.display = 'none';
+                document.body.className = ''; // Limpiar clases de equipo
+            }
+            document.body.classList.remove('flashing-red');
+            document.body.classList.remove('fire-background'); // NUEVA MEJORA: Limpiar fondo de fuego
+            timerContainer.classList.remove('warning');
+            comodinBtn.style.display = 'none';
+            skipBtn.style.display = 'none';
+            teamConsultBtn.style.display = 'none';
+            doubleOrNothingBtn.style.display = 'none'; // NUEVA MEJORA: Ocultar botón
+            isDoubleOrNothingActive = false; // NUEVA MEJORA: Resetear estado
+            nextButton.style.display = 'none';
+            eliminationMessageElement.innerText = ''; 
+            eliminationMessageElement.style.color = 'inherit';
+            while (answerButtonsElement.firstChild) {
+                answerButtonsElement.removeChild(answerButtonsElement.firstChild);
+            }
+        }
+
+        function selectAnswer(e) {
+            clearInterval(questionTimer);
+            document.body.classList.remove('flashing-red');
+            disableButtons();
+            comodinBtn.style.display = 'none';
+            skipBtn.style.display = 'none';
+            teamConsultBtn.style.display = 'none';
+            doubleOrNothingBtn.style.display = 'none'; // NUEVA MEJORA: Ocultar botón
+            
+            const selectedButton = e.target;
+            const isCorrect = selectedButton.dataset.correct === 'true';
+            const player = players[currentPlayerIndex];
+            
+            if (isCorrect) {
+                selectedButton.classList.add('correct');
+                playSound('correct');
+                
+                // NUEVA LÓGICA DOBLE O NADA: Determina los puntos a sumar
+                const pointsFromThisAnswer = isDoubleOrNothingActive ? player.score : 1;
+                const pointsForTeam = isDoubleOrNothingActive ? (player.score + pointsFromThisAnswer) - player.score : 1;
+                
+                player.score += pointsFromThisAnswer;
+
+                // NUEVO MODO EQUIPOS: Lógica de acierto
+                if (gameMode === 'team_duel') {
+                    const isFireMode = player.team === 'A' ? fireModeA : fireModeB;
+                    
+                    if (isFireMode) {
+                        // Robo de puntos
+                        if (player.team === 'A') {
+                            teamAScore++;
+                            if (teamBScore > 0) teamBScore--;
+                        } else {
+                            teamBScore++;
+                            if (teamAScore > 0) teamAScore--;
+                        }
+                    } else {
+                        // Puntuación normal
+                        if (player.team === 'A') {
+                            teamAScore += pointsForTeam;
+                        } else {
+                            teamBScore += pointsForTeam;
+                        }
+                    }
+
+                    if (player.score >= 3) { // Comprobar si se activa el fireMode
+                        if (player.team === 'A' && !fireModeA) {
+                            teamStreakCounterA++;
+                            if (teamStreakCounterA >= 3) {
+                                fireModeA = true;
+                                playSound('fire_mode_activated'); // NUEVA MEJORA: Sonido
+                            }
+                        } else if (player.team === 'B' && !fireModeB) {
+                            teamStreakCounterB++;
+                            if (teamStreakCounterB >= 3) {
+                                fireModeB = true;
+                                playSound('fire_mode_activated'); // NUEVA MEJORA: Sonido
+                            }
+                        }
+                    }
+                    updateTeamScoreboard();
+                } else {
+                    updateLeaderDisplay();
+                }
+                
+                let showMilestone = false;
+                if (player.score === 10) { showMilestoneMessage("Cristoo, no quieres ser pastor?"); showMilestone = true; } 
+                else if (player.score === 5) { showMilestoneMessage("¡Naah usted sabe mucho!"); showMilestone = true; } 
+                else if (player.score === 3) { showMilestoneMessage("¡USTED SI SABEEE!"); showMilestone = true; } 
+                else {
+                    eliminationMessageElement.innerText = '¡Correcto! Siguiente pregunta...';
+                    eliminationMessageElement.style.color = 'var(--correct-color)';
+                }
+                
+                const delay = showMilestone ? MILESTONE_MESSAGE_DELAY : CORRECT_ANSWER_DELAY;
+                
+                setTimeout(() => {
+                    currentQuestionIndex++;
+                    // NUEVO MODO EQUIPOS: Sigue el mismo jugador
+                    if (gameMode === 'team_duel') {
+                        resetState();
+                        showQuestionForPlayer(player);
+                    } else {
+                        showNextTurn();
+                    }
+                }, delay);
+
+            } else {
+                selectedButton.classList.add('incorrect');
+                
+                Array.from(answerButtonsElement.children).forEach(button => {
+                    if (button.dataset.correct === 'true') {
+                        button.classList.add('correct');
+                    }
+                });
+                
+                // NUEVO MODO EQUIPOS: Romper racha de equipo
+                if (gameMode === 'team_duel') {
+                    // NUEVA LÓGICA DOBLE O NADA: Si falla en Doble o Nada, pierde todos los puntos de la racha
+                    if (isDoubleOrNothingActive) {
+                        eliminationMessageElement.innerText = '¡Fallaste en Doble o Nada!';
+                        if (player.team === 'A') {
+                            teamAScore = Math.max(0, teamAScore - player.score);
+                        } else {
+                            teamBScore = Math.max(0, teamBScore - player.score);
+                        }
+                        player.score = 0; // Reiniciar el puntaje del jugador a 0.
+                    }
+
+                    if (player.score < 3) {
+                        if (player.team === 'A') {
+                            teamStreakCounterA = 0;
+                            fireModeA = false;
+                        } else {
+                            teamStreakCounterB = 0;
+                            fireModeB = false;
+                        }
+                    }
+                    updateTeamScoreboard();
+                }
+
+                const reason = `¡${player.name} ha fallado y está eliminado!`;
+                eliminatePlayer(reason);
+            }
+        }
+        
+        function eliminatePlayer(reason) {
+            playSound('incorrect');            
+            
+            const [eliminatedPlayer] = players.splice(currentPlayerIndex, 1);
+            eliminatedPlayers.push(eliminatedPlayer);
+
+            if (interruptedPlayerIndex !== null && currentPlayerIndex < interruptedPlayerIndex) {
+                interruptedPlayerIndex--;
+            }
+            
+            eliminationMessageElement.innerText = reason;
+            eliminationMessageElement.style.color = 'var(--incorrect-color)';
+            
+            if (gameMode !== 'team_duel') {
+                updateLeaderDisplay();
+                updateActivePlayersList();
+            }
+            
+            // En modo equipos, el avance de pregunta y turno es diferente
+            if (gameMode !== 'team_duel') {
+                currentQuestionIndex++;
+            }
+
+            if ((players.length <= 0) || (currentQuestionIndex >= gameQuestions.length)) {
+                nextButton.innerText = 'Ver Resultados Finales';
+            } else {
+                let nextPlayerIdx = currentPlayerIndex % players.length; 
+                nextButton.innerText = `Empezar Turno de ${players[nextPlayerIdx].name}`;
+            }
+            nextButton.style.display = 'block';
+        }
+        
+        function showMilestoneMessage(message) {
+            milestoneMessage.innerText = message;
+            milestoneMessage.classList.add('show');
+            setTimeout(() => {
+                milestoneMessage.classList.remove('show');
+            }, MILESTONE_MESSAGE_DELAY - 500);
+        }
+        
+        nextButton.addEventListener('click', handleNextButton);
+
+        function handleNextButton() {
+            // En modo equipos, el fallo avanza el turno, no la pregunta.
+            if (gameMode === 'team_duel') {
+                // No se incrementa currentQuestionIndex aquí
+            }
+
+            if (interruptedPlayerIndex !== null) {
+                currentPlayerIndex = interruptedPlayerIndex;
+                interruptedPlayerIndex = null;
+            }
+            // La lógica de `showNextTurn` ya maneja el índice del jugador correctamente
+            showNextTurn();
+        }
+        
+        function showScoreboard() {
+             resetState();
+             leaderDisplayElement.style.display = 'none';
+             activePlayersPanel.style.display = 'none';
+             stopGameBtn.style.display = 'none';
+             revivalPopover.classList.remove('show');
+             extraLifeBtn.style.display = 'none';
+             playerTurnContainer.style.display = 'none';
+             teamScoreboard.style.display = 'none';
+             document.body.className = ''; // Limpiar clases de fondo
+             
+             const allPlayers = [...players, ...eliminatedPlayers];
+             if (allPlayers.length === 0) {
+                 questionElement.innerText = '¡Juego Terminado!';
+                 nextButton.innerText = 'Jugar de Nuevo';
+                 nextButton.addEventListener('click', returnToSetup, { once: true });
+                 nextButton.style.display = 'block';
+                 return;
+             }
+
+             // NUEVO MODO EQUIPOS: Lógica de ganador por equipos
+             if (gameMode === 'team_duel') {
+                if (teamAScore > teamBScore) {
+                    questionElement.innerText = `¡El Equipo A gana! 🏆`;
+                } else if (teamBScore > teamAScore) {
+                    questionElement.innerText = `¡El Equipo B gana! 🏆`;
+                } else {
+                    questionElement.innerText = '¡Hay un empate entre equipos!';
+                }
+                if (teamAScore > 0 || teamBScore > 0) triggerConfetti();
+             } else {
+                const highScore = Math.max(0, ...allPlayers.map(p => p.score));
+                const winners = allPlayers.filter(p => p.score === highScore);
+
+                if (highScore === 0) {
+                    playSound('incorrect');
+                    questionElement.innerText = '¡Juego Terminado! (Nadie anotó)';
+                } else if (winners.length > 1) {
+                    questionElement.innerText = '¡Hay un empate!';
+                } else {
+                    questionElement.innerText = `¡El ganador es ${winners[0].name}! 🏆`;
+                }
+                if (highScore > 0) triggerConfetti();
+             }
+
+             allPlayers.sort((a, b) => b.score - a.score); 
+             
+             const scoreboardList = document.createElement('ol');
+             scoreboardList.id = 'scoreboard';
+             
+             allPlayers.forEach((player, index) => {
+                const li = document.createElement('li');
+                const teamIndicator = player.team ? ` <strong style="color: ${player.team === 'A' ? 'var(--team-a-color)' : 'var(--team-b-color)'};">[${player.team}]</strong>` : '';
+                li.innerHTML = `<strong>${player.name}${teamIndicator}</strong> <span>${player.score} Puntos</span>`;
+                
+                if (gameMode !== 'team_duel') {
+                    const highScore = Math.max(0, ...allPlayers.map(p => p.score));
+                    if (highScore > 0 && player.score === highScore) {
+                        li.classList.add('winner'); 
+                    }
+                }
+                li.style.animationDelay = `${index * 0.1}s`;
+                scoreboardList.appendChild(li);
+             });
+             
+             answerButtonsElement.appendChild(scoreboardList);
+             
+             nextButton.innerText = 'Jugar de Nuevo';
+             nextButton.style.display = 'block';
+             nextButton.addEventListener('click', returnToSetup, { once: true });
+
+             if (musicToggle.checked) {
+                gameAudio.pause();
+                gameAudio.currentTime = 0;
+                setupAudio.play().catch(e => console.log("Autoplay blocked for setup music:", e));
+             }
+        }
+
+        function triggerConfetti() {
+            playSound('roulette_win');
+            const duration = 4 * 1000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+            function randomInRange(min, max) {
+                return Math.random() * (max - min) + min;
+            }
+
+            const interval = setInterval(function() {
+                const timeLeft = animationEnd - Date.now();
+
+                if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                }
+
+                const particleCount = 50 * (timeLeft / duration);
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+            }, 250);
+        }
+
+        function returnToSetup() {
+            modeSelectionContainer.classList.remove('fade-out');
+            modeSelectionContainer.style.display = 'block';
+            
+            setupContainer.style.display = 'none';
+            quizContainer.style.display = 'none';
+            rouletteContainer.style.display = 'none';
+            stopGameBtn.style.display = 'none';
+            revivalPopover.classList.remove('show');
+            extraLifeBtn.style.display = 'none';
+            activePlayersPanel.style.display = 'none';
+            leaderDisplayElement.style.display = 'none';
+            teamScoreboard.style.display = 'none';
+            document.body.className = '';
+            playerTurnContainer.style.display = 'block';
+            
+            if (musicToggle.checked) {
+                gameAudio.pause();
+                gameAudio.currentTime = 0;
+                setupAudio.play().catch(e => console.log("Autoplay blocked for setup music:", e));
+            }
+        }
+
+        comodinBtn.addEventListener('click', () => {
+            const player = players[currentPlayerIndex];
+            WildcardManager.useFiftyFifty(player);
+        });
+
+        skipBtn.addEventListener('click', () => {
+            const player = players[currentPlayerIndex];
+            WildcardManager.useSkip(player, () => {
+                disableButtons();
+                currentQuestionIndex++;
+                setTimeout(() => {
+                    if (gameMode === 'team_duel') {
+                        resetState();
+                        showQuestionForPlayer(player);
+                    } else {
+                        showNextTurn();
+                    }
+                }, 500);
+            });
+        });
+
+        // NUEVO MODO EQUIPOS: Lógica del botón de consulta
+        teamConsultBtn.addEventListener('click', () => {
+            const player = players[currentPlayerIndex];
+            const consultsLeft = player.team === 'A' ? consultUsesA : consultUsesB;
+            if (consultsLeft <= 0) return;
+
+            let wasTimerActive = !!questionTimer;
+
+            if (wasTimerActive) {
+                // Pausar timer solo si está activo
+                clearInterval(questionTimer);
+                const timeElapsed = Date.now() - timerStartTime;
+                remainingTimeOnPause -= timeElapsed;
+            }
+
+            if (player.team === 'A') consultUsesA--;
+            else consultUsesB--;
+            
+            teamConsultBtn.textContent = `🤝 Consultar (${player.team === 'A' ? consultUsesA : consultUsesB})`;
+            teamConsultBtn.disabled = (player.team === 'A' ? consultUsesA : consultUsesB) <= 0;
+
+            alert(`¡Consulta de equipo! Tienen tiempo para discutir. Presiona Aceptar para reanudar el tiempo.`);
+
+            if (wasTimerActive) {
+                // Reanudar timer solo si estaba activo
+                const newDuration = Math.ceil(remainingTimeOnPause / 1000);
+                startTimer(newDuration);
+            }
+        });
+
+        // NUEVA LÓGICA DOBLE O NADA: Lógica del botón Doble o Nada
+        doubleOrNothingBtn.addEventListener('click', () => {
+            isDoubleOrNothingActive = true;
+            doubleOrNothingBtn.style.display = 'none';
+            comodinBtn.style.display = 'none';
+            skipBtn.style.display = 'none';
+            teamConsultBtn.style.display = 'none';
+            eliminationMessageElement.innerText = '¡DOBLE O NADA! ¡Cuidado!';
+            eliminationMessageElement.style.color = 'var(--incorrect-color)';
+        });
+
+        clearPlayersBtn.addEventListener('click', () => {
+            if (confirm('¿Estás seguro de que quieres borrar la lista de todos los jugadores? Esta acción no se puede deshacer.')) {
+                players = [];
+                savePlayersToStorage();
+                renderPlayerList();
+            }
+        });
+
+        backToModesBtn.addEventListener('click', returnToModeSelection);
+
+        function returnToModeSelection() {
+            setupContainer.style.display = 'none';
+            modeSelectionContainer.style.display = 'block';
+            modeSelectionContainer.classList.remove('fade-out');
+        }
+
+        if (addPlayerSection) {
+            addPlayerSection.addEventListener('mouseenter', () => {
+                addPlayerSection.classList.add('expanded');
+            });
+            addPlayerSection.addEventListener('mouseleave', () => {
+                addPlayerSection.classList.remove('expanded');
+            });
+        }
+
+        // --- Lógica del Panel de Modo ---
+        document.querySelectorAll('.mode-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                gameMode = e.currentTarget.dataset.mode;
+
+                const modeTitleText = e.currentTarget.querySelector('h3').textContent;
+                setupTitle.textContent = modeTitleText;
+                
+                const comodin5050Setting = document.getElementById('comodin-5050-setting');
+                // NUEVO MODO EQUIPOS: Adaptar opciones
+                if (gameMode === '2_options') {
+                    comodin5050Setting.style.display = 'none';
+                    playerTeamSelect.style.display = 'none';
+                    teamConsultSetting.style.display = 'none';
+                } else if (gameMode === 'team_duel') {
+                    comodin5050Setting.style.display = 'flex';
+                    playerTeamSelect.style.display = 'block';
+                    teamConsultSetting.style.display = 'flex';
+                } else { // Modo Clásico
+                    comodin5050Setting.style.display = 'flex';
+                    playerTeamSelect.style.display = 'none';
+                    teamConsultSetting.style.display = 'none';
+                }
+
+                manageQuestionsLink.href = `manage-questions.html?mode=${gameMode}`;
+
+                modeSelectionContainer.classList.add('fade-out');
+                setTimeout(() => {
+                    modeSelectionContainer.style.display = 'none';
+                    setupContainer.style.display = 'block';
+                    loadPlayers();
+                }, 500);
+            });
+        });
+
+        // --- Control de música y volumen ---
+        musicToggle.addEventListener('change', () => {
+            if (musicToggle.checked) {
+                if (setupContainer.style.display !== 'none' || modeSelectionContainer.style.display !== 'none') {
+                    setupAudio.play().catch(e => {});
+                } else if (quizContainer.style.display !== 'none' || rouletteContainer.style.display !== 'none') {
+                    gameAudio.play().catch(e => {});
+                }
+            } else {
+                setupAudio.pause();
+                gameAudio.pause();
+            }
+        });
+
+        musicVolume.addEventListener('input', () => {
+            setupAudio.volume = musicVolume.value;
+            gameAudio.volume = musicVolume.value;
+        });
+
+        // --- Inicialización al cargar la página ---
+        function initializePage() {
+            setupAudio.volume = musicVolume.value;
+            gameAudio.volume = musicVolume.value;
+
+            if (musicToggle.checked) {
+                setupAudio.play().catch(e => {});
+            }
+
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('return') === 'true') {
+                gameMode = params.get('mode') || '4_options';
+
+                if (gameMode === '2_options') {
+                    setupTitle.textContent = 'Modo Duelo';
+                } else if (gameMode === 'team_duel') {
+                    setupTitle.textContent = 'Duelo de Equipos';
+                } else {
+                    setupTitle.textContent = 'Modo Clásico';
+                }
+                
+                const comodin5050Setting = document.getElementById('comodin-5050-setting');
+                if (gameMode === '2_options') {
+                    comodin5050Setting.style.display = 'none';
+                    playerTeamSelect.style.display = 'none';
+                    teamConsultSetting.style.display = 'none';
+                } else if (gameMode === 'team_duel') {
+                    comodin5050Setting.style.display = 'flex';
+                    playerTeamSelect.style.display = 'block';
+                    teamConsultSetting.style.display = 'flex';
+                } else {
+                    comodin5050Setting.style.display = 'flex';
+                    playerTeamSelect.style.display = 'none';
+                    teamConsultSetting.style.display = 'none';
+                }
+                manageQuestionsLink.href = `manage-questions.html?mode=${gameMode}`;
+
+                modeSelectionContainer.style.display = 'none';
+                setupContainer.style.display = 'block';
+                loadPlayers();
+            }
+        }
+
+        initializePage();
+    </script>
+</body>
+</html>
