@@ -1232,6 +1232,13 @@
                 oscillator.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.5);
                 gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
                 duration = 0.6;
+            // NUEVA MEJORA: Sonido para la Leyenda
+            } else if (type === 'hero_legend') {
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.8);
+                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                duration = 1.0;
             }
             
             gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
@@ -1897,7 +1904,7 @@
             isDoubleOrNothingActive = false; // NUEVA MEJORA: Resetear estado
             nextButton.style.display = 'none';
             eliminationMessageElement.innerText = ''; 
-            eliminationMessageElement.style.color = 'inherit';
+            eliminationMessageElement.style.color = 'var(--correct-color)';
             while (answerButtonsElement.firstChild) {
                 answerButtonsElement.removeChild(answerButtonsElement.firstChild);
             }
@@ -1931,13 +1938,11 @@
                     const isFireMode = player.team === 'A' ? fireModeA : fireModeB;
                     
                     if (isFireMode) {
-                        // Robo de puntos
+                        // FIX PUNTUACIÓN: Ya no se roba, se suman 2 puntos.
                         if (player.team === 'A') {
-                            teamAScore++;
-                            if (teamBScore > 0) teamBScore--;
+                            teamAScore += 2;
                         } else {
-                            teamBScore++;
-                            if (teamAScore > 0) teamAScore--;
+                            teamBScore += 2;
                         }
                     } else {
                         // Puntuación normal
@@ -1948,18 +1953,19 @@
                         }
                     }
 
-                    if (player.score >= 3) { // Comprobar si se activa el fireMode
+                    // FIX RACHA DE FUEGO: Solo se incrementa el contador al llegar a 3.
+                    if (player.score === 3) { 
                         if (player.team === 'A' && !fireModeA) {
                             teamStreakCounterA++;
                             if (teamStreakCounterA >= 3) {
                                 fireModeA = true;
-                                playSound('fire_mode_activated'); // NUEVA MEJORA: Sonido
+                                playSound('fire_mode_activated');
                             }
                         } else if (player.team === 'B' && !fireModeB) {
                             teamStreakCounterB++;
                             if (teamStreakCounterB >= 3) {
                                 fireModeB = true;
-                                playSound('fire_mode_activated'); // NUEVA MEJORA: Sonido
+                                playSound('fire_mode_activated');
                             }
                         }
                     }
@@ -1974,7 +1980,6 @@
                 else if (player.score === 3) { showMilestoneMessage("¡USTED SI SABEEE!"); showMilestone = true; } 
                 else {
                     eliminationMessageElement.innerText = '¡Correcto! Siguiente pregunta...';
-                    eliminationMessageElement.style.color = 'var(--correct-color)';
                 }
                 
                 const delay = showMilestone ? MILESTONE_MESSAGE_DELAY : CORRECT_ANSWER_DELAY;
@@ -2012,14 +2017,13 @@
                         player.score = 0; // Reiniciar el puntaje del jugador a 0.
                     }
 
-                    if (player.score < 3) {
-                        if (player.team === 'A') {
-                            teamStreakCounterA = 0;
-                            fireModeA = false;
-                        } else {
-                            teamStreakCounterB = 0;
-                            fireModeB = false;
-                        }
+                    // Al fallar, se rompe la racha de fuego si estaba activa.
+                    if (player.team === 'A') {
+                        teamStreakCounterA = 0;
+                        fireModeA = false;
+                    } else {
+                        teamStreakCounterB = 0;
+                        fireModeB = false;
                     }
                     updateTeamScoreboard();
                 }
@@ -2231,18 +2235,18 @@
         });
 
         // NUEVO MODO EQUIPOS: Lógica del botón de consulta
+        // FIX TIEMPO EN CONSULTA (Bug del Alert)
         teamConsultBtn.addEventListener('click', () => {
             const player = players[currentPlayerIndex];
             const consultsLeft = player.team === 'A' ? consultUsesA : consultUsesB;
             if (consultsLeft <= 0) return;
 
-            let wasTimerActive = !!questionTimer;
+            const isTimerActive = !!questionTimer;
+            let capturedTime = 0;
 
-            if (wasTimerActive) {
-                // Pausar timer solo si está activo
+            if (isTimerActive) {
                 clearInterval(questionTimer);
-                const timeElapsed = Date.now() - timerStartTime;
-                remainingTimeOnPause -= timeElapsed;
+                capturedTime = parseInt(timerText.innerText);
             }
 
             if (player.team === 'A') consultUsesA--;
@@ -2253,10 +2257,8 @@
 
             alert(`¡Consulta de equipo! Tienen tiempo para discutir. Presiona Aceptar para reanudar el tiempo.`);
 
-            if (wasTimerActive) {
-                // Reanudar timer solo si estaba activo
-                const newDuration = Math.ceil(remainingTimeOnPause / 1000);
-                startTimer(newDuration);
+            if (isTimerActive) {
+                startTimer(capturedTime);
             }
         });
 
